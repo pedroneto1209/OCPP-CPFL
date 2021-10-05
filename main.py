@@ -1,4 +1,7 @@
 import asyncio
+from asyncio.runners import run
+from asyncio.windows_events import NULL
+import keyboard
 import websockets
 from datetime import datetime
 
@@ -8,7 +11,6 @@ from ocpp.v16.enums import Action, RegistrationStatus, ResetStatus, ResetType
 from ocpp.v16 import call_result, call
 
 hb = 0
-
 class ChargePoint(cp):
     @on(Action.BootNotification)
     def on_boot_notitication(self, **kwargs):
@@ -45,19 +47,29 @@ class ChargePoint(cp):
 
     async def reset_send(self):
         request = call.ResetPayload(
-            type=ResetType.soft
+            type=ResetType.hard
         )
         response = await self.call(request)
         if response.status == ResetStatus.accepted:
             print("Reset Started!!!")
 
-
+chargepoint = NULL
 
 async def on_connect(websocket, path):
+    global chargepoint
     charge_point_id = path.strip('/')
     cp = ChargePoint(charge_point_id, websocket)
-
+    chargepoint = cp
+    print('cp assigned')
     await cp.start()
+
+async def scankey():
+    global chargepoint
+    while True:
+        print('clock')
+        if keyboard.is_pressed('q'):
+            await chargepoint.reset_send()
+        await asyncio.sleep(1)
 
 
 async def main():
@@ -68,7 +80,8 @@ async def main():
         subprotocols=['ocpp1.6']
     )
 
-    await server.wait_closed()
+    tasks = [asyncio.ensure_future(server.wait_closed()), asyncio.ensure_future(scankey())]
+    await asyncio.wait(tasks)
 
 
 if __name__ == '__main__':
