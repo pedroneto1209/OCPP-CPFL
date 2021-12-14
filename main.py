@@ -1,10 +1,13 @@
 import asyncio
+from asyncio import sleep
+from asyncio.base_events import Server
 from asyncio.windows_events import NULL
 import websockets
 
 from chargepoint import ChargePoint
 from controller import controller
 
+server = NULL
 class Connector:    
     def __init__(self):
         self.chargepoint = NULL
@@ -27,9 +30,10 @@ async def main():
         subprotocols=['ocpp1.6']
     )
 
+    await sleep(10)
+
     tasks = [asyncio.ensure_future(server.wait_closed()), asyncio.ensure_future(controller(connector.chargepoint))]
     await asyncio.wait(tasks)
-
 
 if __name__ == '__main__':
     asyncio.run(main())
